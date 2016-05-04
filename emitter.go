@@ -5,7 +5,7 @@ type Emitter interface {
 }
 
 type DefaultEmitter struct {
-	Sender
+	SenderBase
 }
 
 func NewEmitter() *DefaultEmitter {
@@ -13,7 +13,7 @@ func NewEmitter() *DefaultEmitter {
 }
 
 func (e *DefaultEmitter) Emit(k *Key, v *Vals) error {
-	return e.Sender.Send(MakeEvent(k, v))
+	return e.SenderBase.Send(MakeEvent(k, v))
 }
 
 func (e *DefaultEmitter) Link(r *Receiver) {
