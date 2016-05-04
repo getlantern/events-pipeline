@@ -1,5 +1,6 @@
 package events
 
 type Emitter interface {
-	Emit(Key, *Vals) error
+	Sender
+	Emit(*Key, *Vals)
 }

@@ -1,8 +1,8 @@
 package events
 
 type Processor interface {
-	Receive(*Event)
+	Receiver
+	Sender
 	Process(*Event)
-	Send(*Event)
 	Ack(*Event)
 }
