@@ -1,22 +1,19 @@
 package events
 
 type Emitter interface {
-	Sender
 	Emit(*Key, *Vals)
 }
 
 type DefaultEmitter struct {
+	Sender
 }
 
 func NewEmitter() *DefaultEmitter {
 	return &DefaultEmitter{}
 }
 
-func (e *DefaultEmitter) Emit(k *Key, v *Vals) {
-}
-
-func (e *DefaultEmitter) Send(ev *Event) error {
-	return nil
+func (e *DefaultEmitter) Emit(k *Key, v *Vals) error {
+	return e.Sender.Send(MakeEvent(k, v))
 }
 
 func (e *DefaultEmitter) Link(r *Receiver) {

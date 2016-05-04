@@ -14,18 +14,18 @@ type Wire struct {
 
 type Pipeline struct {
 	bolts []Bolt
-	wires []Wire
+	wires []*Wire
 }
 
-func NewPipeline(emitter *Emitter) *Pipeline {
+func NewPipeline(sender *Sender) *Pipeline {
 	return &Pipeline{
-		bolts: []Bolt{emitter},
-		wires: []Wire{},
+		bolts: []Bolt{sender},
+		wires: []*Wire{},
 	}
 }
 
 func (p *Pipeline) Plug(s *Sender, r *Receiver) error {
-	newWire := Wire{
+	newWire := &Wire{
 		sender:   s,
 		receiver: r,
 	}

@@ -1,14 +1,48 @@
 package events
 
-type Bolt interface{}
+// Event
+type Key string
+type Vals map[string]interface{}
 
-type Sender interface {
-	Bolt
-	Send(e *Event) error
-	Link(*Receiver)
+type Event struct {
+	Key  Key
+	Vals Vals
 }
 
+func MakeEvent(k *Key, vals *Vals) *Event {
+	return &Event{
+		Key:  *k,
+		Vals: *vals,
+	}
+}
+
+// Bolt
+type Bolt interface{}
+
+// Sender
+type Sender interface {
+	Send(*Event) error
+}
+
+type SenderBase struct {
+	outlets []*Wire
+}
+
+func (s SenderBase) Send(evt *Event) error {
+	// TODO
+	return nil
+}
+
+// Receiver
 type Receiver interface {
-	Bolt
-	Receive(e *Event) error
+	Receive(*Event) error
+}
+
+type ReceiverBase struct {
+	inlets []*Wire
+}
+
+func (s ReceiverBase) Receive(evt *Event) error {
+	// TODO
+	return nil
 }
