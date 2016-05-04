@@ -1,10 +1,14 @@
 package events
 
-type Receiver interface {
-	Receive(*Event) error
-}
+type Bolt interface{}
 
 type Sender interface {
-	Send() error
+	Bolt
+	Send(e *Event) error
 	Link(*Receiver)
+}
+
+type Receiver interface {
+	Bolt
+	Receive(e *Event) error
 }
