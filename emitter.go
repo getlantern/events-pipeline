@@ -1,10 +1,5 @@
 package events
 
-type Emitter interface {
-	Sender
-	Emit(Key, *Vals) error
-}
-
 type EmitterBase struct {
 	SenderBase
 }

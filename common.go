@@ -25,9 +25,7 @@ func MakeEvent(k Key, vals *Vals) *Event {
 }
 
 // Bolt
-type Bolt interface {
-	Link(*Wire)
-}
+type Bolt interface{}
 
 // Wire
 type Wire struct {
@@ -38,7 +36,7 @@ type Wire struct {
 
 // Sender
 type Sender interface {
-	Link(*Wire)
+	LinkOutlet(*Wire)
 	Send(*Event) error
 }
 
@@ -46,7 +44,7 @@ type SenderBase struct {
 	outlets []*Wire
 }
 
-func (s *SenderBase) Link(wire *Wire) {
+func (s *SenderBase) LinkOutlet(wire *Wire) {
 	s.outlets = append(s.outlets, wire)
 }
 
@@ -59,7 +57,7 @@ func (s *SenderBase) Send(evt *Event) error {
 
 // Receiver
 type Receiver interface {
-	Link(*Wire)
+	LinkInlet(*Wire)
 	Receive(*Event) error
 }
 
@@ -67,6 +65,30 @@ type ReceiverBase struct {
 	inlets []*Wire
 }
 
-func (s *ReceiverBase) Link(wire *Wire) {
+func (s *ReceiverBase) LinkInlet(wire *Wire) {
 	s.inlets = append(s.inlets, wire)
+}
+
+// Emitter
+type Emitter interface {
+	Sender
+	Emit(Key, *Vals) error
+}
+
+// Sink
+type Sink interface {
+	Receiver
+}
+
+// Processor
+type Processor interface {
+	Sender
+	Receiver
+	Process(*Event)
+	Ack(*Event)
+}
+
+type ProcessorBase struct {
+	SenderBase
+	ReceiverBase
 }

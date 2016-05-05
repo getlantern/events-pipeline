@@ -26,8 +26,8 @@ func (p *Pipeline) Plug(s Sender, r Receiver) (*Wire, error) {
 		events:    &evChan,
 	}
 	p.Wires = append(p.Wires, newWire)
-	s.Link(newWire)
-	r.Link(newWire)
+	s.LinkOutlet(newWire)
+	r.LinkInlet(newWire)
 
 	return newWire, nil
 }
