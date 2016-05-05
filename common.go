@@ -17,7 +17,7 @@ type Event struct {
 	Vals Vals
 }
 
-func MakeEvent(k Key, vals *Vals) *Event {
+func NewEvent(k Key, vals *Vals) *Event {
 	return &Event{
 		Key:  k,
 		Vals: *vals,
@@ -74,6 +74,28 @@ type Emitter interface {
 	Sender
 	Emit(Key, *Vals) error
 }
+
+type EmitterBase struct {
+	SenderBase
+}
+
+func NewEmitter() *EmitterBase {
+	return &EmitterBase{}
+}
+
+func (e *EmitterBase) Emit(k Key, v *Vals) error {
+	return e.SenderBase.Send(NewEvent(k, v))
+}
+
+/*
+func (e *EmitterBase) Link(r *Wire) {
+	e.SenderBase.Link(r)
+}
+
+func (e *EmitterBase) Send(evt *Event) error {
+	return nil
+}
+*/
 
 // Sink
 type Sink interface {
