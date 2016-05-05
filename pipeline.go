@@ -2,38 +2,28 @@ package events
 
 import (
 	"fmt"
-
-	"github.com/getlantern/golog"
 )
-
-var (
-	log = golog.LoggerFor("events-pipeline")
-)
-
-type EventChannel chan (*Event)
-
-type Wire struct {
-	senders   []Sender
-	receivers []Receiver
-	events    *EventChannel
-}
 
 type Pipeline struct {
 	Bolts []Bolt
 	Wires []*Wire
+	stop  chan struct{}
 }
 
 func NewPipeline(sender Sender) *Pipeline {
 	return &Pipeline{
 		Bolts: []Bolt{sender},
 		Wires: []*Wire{},
+		stop:  make(chan struct{}),
 	}
 }
 
 func (p *Pipeline) Plug(s Sender, r Receiver) (*Wire, error) {
+	evChan := make(chan *Event)
 	newWire := &Wire{
 		senders:   []Sender{s},
 		receivers: []Receiver{r},
+		events:    &evChan,
 	}
 	p.Wires = append(p.Wires, newWire)
 	s.Link(newWire)
@@ -76,8 +66,14 @@ func (p *Pipeline) Run() {
 					}
 
 					log.Tracef("Received event; %v", evt)
+				case <-p.stop:
+					return
 				}
 			}
 		}()
 	}
+}
+
+func (p *Pipeline) Stop() {
+	p.stop <- struct{}{}
 }

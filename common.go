@@ -1,5 +1,13 @@
 package events
 
+import (
+	"github.com/getlantern/golog"
+)
+
+var (
+	log = golog.LoggerFor("events-pipeline")
+)
+
 // Event
 type Key string
 type Vals map[string]interface{}
@@ -9,9 +17,9 @@ type Event struct {
 	Vals Vals
 }
 
-func MakeEvent(k *Key, vals *Vals) *Event {
+func MakeEvent(k Key, vals *Vals) *Event {
 	return &Event{
-		Key:  *k,
+		Key:  k,
 		Vals: *vals,
 	}
 }
@@ -21,9 +29,16 @@ type Bolt interface {
 	Link(*Wire)
 }
 
+// Wire
+type Wire struct {
+	senders   []Sender
+	receivers []Receiver
+	events    *chan *Event
+}
+
 // Sender
 type Sender interface {
-	Bolt
+	Link(*Wire)
 	Send(*Event) error
 }
 
@@ -31,11 +46,11 @@ type SenderBase struct {
 	outlets []*Wire
 }
 
-func (s SenderBase) Link(wire *Wire) {
+func (s *SenderBase) Link(wire *Wire) {
 	s.outlets = append(s.outlets, wire)
 }
 
-func (s SenderBase) Send(evt *Event) error {
+func (s *SenderBase) Send(evt *Event) error {
 	for _, w := range s.outlets {
 		*w.events <- evt
 	}
@@ -44,7 +59,7 @@ func (s SenderBase) Send(evt *Event) error {
 
 // Receiver
 type Receiver interface {
-	Bolt
+	Link(*Wire)
 	Receive(*Event) error
 }
 
@@ -52,6 +67,6 @@ type ReceiverBase struct {
 	inlets []*Wire
 }
 
-func (s ReceiverBase) Link(wire *Wire) {
+func (s *ReceiverBase) Link(wire *Wire) {
 	s.inlets = append(s.inlets, wire)
 }
