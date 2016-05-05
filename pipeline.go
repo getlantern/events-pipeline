@@ -2,49 +2,80 @@ package events
 
 import (
 	"fmt"
+
+	"github.com/getlantern/golog"
+)
+
+var (
+	log = golog.LoggerFor("events-pipeline")
 )
 
 type EventChannel chan (*Event)
 
 type Wire struct {
-	sender   *Sender
-	receiver *Receiver
-	events   *EventChannel
+	senders   []Sender
+	receivers []Receiver
+	events    *EventChannel
 }
 
 type Pipeline struct {
-	bolts []Bolt
-	wires []*Wire
+	Bolts []Bolt
+	Wires []*Wire
 }
 
 func NewPipeline(sender Sender) *Pipeline {
 	return &Pipeline{
-		bolts: []Bolt{sender},
-		wires: []*Wire{},
+		Bolts: []Bolt{sender},
+		Wires: []*Wire{},
 	}
 }
 
-func (p *Pipeline) Plug(s Sender, r Receiver) error {
+func (p *Pipeline) Plug(s Sender, r Receiver) (*Wire, error) {
 	newWire := &Wire{
-		sender:   &s,
-		receiver: &r,
+		senders:   []Sender{s},
+		receivers: []Receiver{r},
 	}
-	p.wires = append(p.wires, newWire)
+	p.Wires = append(p.Wires, newWire)
 	s.Link(newWire)
 	r.Link(newWire)
+
+	return newWire, nil
+}
+
+func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) error {
+	// Find out if the sender already uses this wire
+	var fSender Sender
+	for _, ws := range wire.senders {
+		if ws == s {
+			fSender = ws
+			break
+		}
+	}
+	var fReceiver Receiver
+	for _, wr := range wire.receivers {
+		if wr == r {
+			fReceiver = wr
+			break
+		}
+	}
+	if fSender != nil && fReceiver != nil {
+		return fmt.Errorf("This wire already connects these bolts")
+	}
 
 	return nil
 }
 
 func (p *Pipeline) Run() {
-	for _, wire := range p.wires {
-		receiver := *wire.receiver
+	for _, wire := range p.Wires {
 		go func() {
 			for {
 				select {
 				case evt := <-*wire.events:
-					receiver.Receive(evt)
-					fmt.Println(evt)
+					for _, rcv := range wire.receivers {
+						rcv.Receive(evt)
+					}
+
+					log.Tracef("Received event; %v", evt)
 				}
 			}
 		}()

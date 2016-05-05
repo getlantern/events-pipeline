@@ -55,8 +55,3 @@ type ReceiverBase struct {
 func (s ReceiverBase) Link(wire *Wire) {
 	s.inlets = append(s.inlets, wire)
 }
-
-func (s ReceiverBase) Receive(evt *Event) error {
-	// TODO
-	return nil
-}
