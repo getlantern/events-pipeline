@@ -69,6 +69,10 @@ func (s *ReceiverBase) LinkInlet(wire *Wire) {
 	s.inlets = append(s.inlets, wire)
 }
 
+func (s *ReceiverBase) Receive(evt *Event) error {
+	return nil
+}
+
 // Emitter
 type Emitter interface {
 	Sender
@@ -86,16 +90,6 @@ func NewEmitter() *EmitterBase {
 func (e *EmitterBase) Emit(k Key, v *Vals) error {
 	return e.SenderBase.Send(NewEvent(k, v))
 }
-
-/*
-func (e *EmitterBase) Link(r *Wire) {
-	e.SenderBase.Link(r)
-}
-
-func (e *EmitterBase) Send(evt *Event) error {
-	return nil
-}
-*/
 
 // Sink
 type Sink interface {

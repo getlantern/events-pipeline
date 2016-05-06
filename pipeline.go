@@ -67,8 +67,6 @@ func (p *Pipeline) Run() {
 					for _, rcv := range wire.receivers {
 						rcv.Receive(evt)
 					}
-
-					log.Tracef("Received event; %v", evt)
 				case <-p.stop:
 					return
 				}
