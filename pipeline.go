@@ -32,19 +32,17 @@ func NewPipeline(sender Sender) *Pipeline {
 
 func (p *Pipeline) Plug(s Sender, r Receiver) (*Wire, error) {
 	evChan := make(chan *Event)
-	newWire := &Wire{
-		senders:   []Sender{s},
-		receivers: []Receiver{r},
+	wire := &Wire{
+		senders:   []Sender{},
+		receivers: []Receiver{},
 		events:    &evChan,
 	}
-	p.Wires = append(p.Wires, newWire)
-	s.LinkOutlet(newWire)
-	r.LinkInlet(newWire)
+	p.Wires = append(p.Wires, wire)
 
-	return newWire, nil
+	return p.PlugWith(s, r, wire)
 }
 
-func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) error {
+func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) (*Wire, error) {
 	// Find out if the sender already uses this wire
 	var fSender Sender
 	for _, ws := range wire.senders {
@@ -61,10 +59,15 @@ func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) error {
 		}
 	}
 	if fSender != nil && fReceiver != nil {
-		return fmt.Errorf("This wire already connects these bolts")
+		return nil, fmt.Errorf("This wire already connects these bolts")
 	}
 
-	return nil
+	wire.senders = append(wire.senders, s)
+	wire.receivers = append(wire.receivers, r)
+	s.LinkOutlet(wire)
+	r.LinkInlet(wire)
+
+	return wire, nil
 }
 
 func (p *Pipeline) Run() {

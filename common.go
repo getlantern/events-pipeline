@@ -25,7 +25,8 @@ func NewEvent(k Key, vals *Vals) *Event {
 }
 
 // Bolt
-type Bolt interface{}
+type Bolt interface {
+}
 
 // Wire
 type Wire struct {
@@ -36,6 +37,7 @@ type Wire struct {
 
 // Sender
 type Sender interface {
+	Bolt
 	LinkOutlet(*Wire)
 	Send(*Event) error
 }
@@ -57,6 +59,7 @@ func (s *SenderBase) Send(evt *Event) error {
 
 // Receiver
 type Receiver interface {
+	Bolt
 	LinkInlet(*Wire)
 	Receive(*Event) error
 }
@@ -80,15 +83,22 @@ type Emitter interface {
 }
 
 type EmitterBase struct {
+	id string
 	SenderBase
 }
 
-func NewEmitter() *EmitterBase {
-	return &EmitterBase{}
+func NewEmitter(ID string) *EmitterBase {
+	return &EmitterBase{
+		id: ID,
+	}
 }
 
 func (e *EmitterBase) Emit(k Key, v *Vals) error {
 	return e.SenderBase.Send(NewEvent(k, v))
+}
+
+func (e *EmitterBase) ID() string {
+	return e.id
 }
 
 // Sink
@@ -98,8 +108,16 @@ type Sink interface {
 
 // Processor
 type Processor interface {
-	Sender
-	Receiver
+	Bolt
+
+	// Sender
+	LinkOutlet(*Wire)
+	Send(*Event) error
+
+	// Receiver
+	LinkInlet(*Wire)
+	Receive(*Event) error
+
 	Process(*Event)
 	Ack(*Event)
 }
