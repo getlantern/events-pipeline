@@ -60,20 +60,6 @@ func (s *SenderBase) LinkOutlet(wire *Wire) {
 	s.outlets = append(s.outlets, wire)
 }
 
-func (s *SenderBase) Send(evt *Event) error {
-	for _, w := range s.outlets {
-		copy := *evt
-		copy.wire = w
-		copy.sender = s
-		*w.events <- &copy
-	}
-	return nil
-}
-
-func (s *SenderBase) Ack(evt *Event) error {
-	return nil
-}
-
 // Receiver
 type Receiver interface {
 	Bolt
@@ -87,10 +73,6 @@ type ReceiverBase struct {
 
 func (s *ReceiverBase) LinkInlet(wire *Wire) {
 	s.inlets = append(s.inlets, wire)
-}
-
-func (e *ReceiverBase) Receive(evt *Event) error {
-	return evt.sender.Ack(evt)
 }
 
 // Emitter
@@ -115,7 +97,21 @@ func (e *EmitterBase) ID() string {
 }
 
 func (e *EmitterBase) Emit(k Key, v *Vals) error {
-	return e.SenderBase.Send(NewEvent(k, v))
+	return e.Send(NewEvent(k, v))
+}
+
+func (e *EmitterBase) Send(evt *Event) error {
+	for _, w := range e.outlets {
+		copy := *evt
+		copy.wire = w
+		copy.sender = e
+		*w.events <- &copy
+	}
+	return nil
+}
+
+func (s *SenderBase) Ack(evt *Event) error {
+	return nil
 }
 
 // Sink

@@ -15,7 +15,7 @@ func NewDummySink(id string) *DummySink {
 
 func (s *DummySink) Receive(evt *Event) error {
 	log.Tracef("SINK ID %v received event: %v with: %v", s.ID(), evt.Key, evt.Vals)
-	return s.SinkBase.Receive(evt)
+	return evt.sender.Ack(evt)
 }
 
 // Dummy Processor
