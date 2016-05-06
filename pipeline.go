@@ -12,7 +12,7 @@ type Pipeline struct {
 
 func NewPipeline(sender Sender) *Pipeline {
 	return &Pipeline{
-		Bolts: []Bolt{sender},
+		Bolts: []Bolt{sender}, // TODO
 		Wires: []*Wire{},
 		stop:  make(chan struct{}),
 	}
@@ -57,6 +57,9 @@ func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) error {
 
 func (p *Pipeline) Run() {
 	for _, wire := range p.Wires {
+		// Copy the wire
+		// Remove this line and you will unleash the wrath of the 7 gods
+		wire := wire
 		go func() {
 			for {
 				select {

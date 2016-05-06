@@ -22,7 +22,7 @@ func (s *DummySink) LinkInlet(w *Wire) {
 }
 */
 func (s *DummySink) Receive(evt *Event) error {
-	fmt.Printf("Received event Key: %v Vals: %v\n", evt.Key, evt.Vals)
+	fmt.Printf("SINK Received event Key: %v Vals: %v\n", evt.Key, evt.Vals)
 	return nil
 }
 
@@ -36,6 +36,7 @@ func NewDummyProcessor() *DummyProcessor {
 	return &DummyProcessor{}
 }
 
+/*
 func (p *DummyProcessor) LinkOut(w *Wire) {
 	p.SenderBase.LinkOutlet(w)
 }
@@ -43,8 +44,9 @@ func (p *DummyProcessor) LinkOut(w *Wire) {
 func (p *DummyProcessor) LinkInlet(w *Wire) {
 	p.ReceiverBase.LinkInlet(w)
 }
-
+*/
 func (p *DummyProcessor) Receive(evt *Event) error {
+	fmt.Printf("PROCESSOR Received event Key: %v Vals: %v\n", evt.Key, evt.Vals)
 	return p.Send(evt)
 }
 
