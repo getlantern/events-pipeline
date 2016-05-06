@@ -11,7 +11,7 @@ func NewDummySink(id string) *DummySink {
 }
 
 func (s *DummySink) Receive(evt *Event) error {
-	log.Tracef("SINK Received event Key: %v Vals: %v", evt.Key, evt.Vals)
+	log.Tracef("SINK ID %v received event: %v with: %v", s.ID(), evt.Key, evt.Vals)
 	return nil
 }
 
@@ -30,7 +30,7 @@ func NewDummyProcessor(id string) *DummyProcessor {
 }
 
 func (p *DummyProcessor) Receive(evt *Event) error {
-	log.Tracef("PROCESSOR Received event Key: %v Vals: %v", evt.Key, evt.Vals)
+	log.Tracef("PROCESSOR ID %v received event: %v with: %v", p.ID(), evt.Key, evt.Vals)
 	return p.Send(evt)
 }
 
