@@ -15,6 +15,10 @@ type Vals map[string]interface{}
 type Event struct {
 	Key  Key
 	Vals Vals
+
+	// Internal
+	wire   *Wire
+	sender Sender
 }
 
 func NewEvent(k Key, vals *Vals) *Event {
@@ -26,6 +30,7 @@ func NewEvent(k Key, vals *Vals) *Event {
 
 // Bolt
 type Bolt interface {
+	ID() string
 }
 
 // Wire
@@ -40,10 +45,15 @@ type Sender interface {
 	Bolt
 	LinkOutlet(*Wire)
 	Send(*Event) error
+	Ack(*Event) error
 }
 
 type SenderBase struct {
 	outlets []*Wire
+}
+
+func (s *SenderBase) ID() string {
+	return ""
 }
 
 func (s *SenderBase) LinkOutlet(wire *Wire) {
@@ -52,8 +62,15 @@ func (s *SenderBase) LinkOutlet(wire *Wire) {
 
 func (s *SenderBase) Send(evt *Event) error {
 	for _, w := range s.outlets {
-		*w.events <- evt
+		copy := *evt
+		copy.wire = w
+		copy.sender = s
+		*w.events <- &copy
 	}
+	return nil
+}
+
+func (s *SenderBase) Ack(evt *Event) error {
 	return nil
 }
 
@@ -72,8 +89,8 @@ func (s *ReceiverBase) LinkInlet(wire *Wire) {
 	s.inlets = append(s.inlets, wire)
 }
 
-func (s *ReceiverBase) Receive(evt *Event) error {
-	return nil
+func (e *ReceiverBase) Receive(evt *Event) error {
+	return evt.sender.Ack(evt)
 }
 
 // Emitter
@@ -93,17 +110,26 @@ func NewEmitter(ID string) *EmitterBase {
 	}
 }
 
-func (e *EmitterBase) Emit(k Key, v *Vals) error {
-	return e.SenderBase.Send(NewEvent(k, v))
-}
-
 func (e *EmitterBase) ID() string {
 	return e.id
+}
+
+func (e *EmitterBase) Emit(k Key, v *Vals) error {
+	return e.SenderBase.Send(NewEvent(k, v))
 }
 
 // Sink
 type Sink interface {
 	Receiver
+}
+
+type SinkBase struct {
+	ReceiverBase
+	id string
+}
+
+func (s *SinkBase) ID() string {
+	return s.id
 }
 
 // Processor
@@ -113,16 +139,21 @@ type Processor interface {
 	// Sender
 	LinkOutlet(*Wire)
 	Send(*Event) error
+	Ack(*Event) error
 
 	// Receiver
 	LinkInlet(*Wire)
 	Receive(*Event) error
 
-	Process(*Event)
-	Ack(*Event)
+	Process(*Event) error
 }
 
 type ProcessorBase struct {
+	id string
 	SenderBase
 	ReceiverBase
+}
+
+func (p *ProcessorBase) ID() string {
+	return p.id
 }
