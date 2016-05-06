@@ -1,3 +1,15 @@
+// The pipeline is the engine of the events processing mechanism.
+// It is implemented as a set of of "wires" that concurrently de/mux
+// the data from "bolts" (senders or receivers of data).
+// Data processing is synchronized in the receivers, which means that
+// they need to be ready to read from the wire at all times.
+// This is particularly relevant for sinks, which in all likelyhood
+// will rely on networking (sending processed events to a remote
+// service). In practical terms, this means that they have to implement
+// their own buffering scheme internally so the pipeline implementation
+// is more lightweight and we have more control of the buffering
+// depending on the sink requirements.
+
 package events
 
 import (
@@ -57,7 +69,7 @@ func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) error {
 
 func (p *Pipeline) Run() {
 	for _, wire := range p.Wires {
-		// Copy the wire
+		// Copy the reference to the wire
 		// Remove this line and you will unleash the wrath of the 7 gods
 		wire := wire
 		go func() {
