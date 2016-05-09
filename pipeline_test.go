@@ -11,7 +11,7 @@ func TestTrivialPipeline(t *testing.T) {
 	t.SkipNow()
 
 	emitter := NewEmitter("test-emitter")
-	sink := NewDummySink("test-sink")
+	sink := NewNullSink("test-sink")
 	pipeline := NewPipeline(emitter)
 	_, err := pipeline.Plug(emitter, sink)
 	assert.Nil(t, err, "Should be nil")
@@ -28,10 +28,10 @@ func TestTrivialPipeline(t *testing.T) {
 	pipeline.Stop()
 }
 
-func TestDummyProcessor(t *testing.T) {
+func TestIdentityProcessor(t *testing.T) {
 	emitter := NewEmitter("test-emitter")
-	sink := NewDummySink("test-sink")
-	dummy := NewDummyProcessor("test-processor")
+	sink := NewNullSink("test-sink")
+	dummy := NewIdentityProcessor("test-processor")
 	pipeline := NewPipeline(emitter)
 	_, err := pipeline.Plug(emitter, dummy)
 	assert.Nil(t, err, "Should be nil")
@@ -54,10 +54,10 @@ func TestDummyProcessor(t *testing.T) {
 
 func TestProcessorChain(t *testing.T) {
 	emitter := NewEmitter("test-emitter")
-	sink := NewDummySink("test-sink")
-	dummy1 := NewDummyProcessor("test-processor A")
-	dummy2 := NewDummyProcessor("test-processor B")
-	dummy3 := NewDummyProcessor("test-processor C")
+	sink := NewNullSink("test-sink")
+	dummy1 := NewIdentityProcessor("test-processor A")
+	dummy2 := NewIdentityProcessor("test-processor B")
+	dummy3 := NewIdentityProcessor("test-processor C")
 	pipeline := NewPipeline(emitter)
 	_, err := pipeline.Plug(emitter, dummy1)
 	assert.Nil(t, err, "Should be nil")
@@ -88,7 +88,7 @@ func TestProcessorChain(t *testing.T) {
 
 func TestAddDoubleConnect(t *testing.T) {
 	emitter := NewEmitter("test-emitter")
-	sink := NewDummySink("test-sink")
+	sink := NewNullSink("test-sink")
 	pipeline := NewPipeline(emitter)
 
 	// Reuse the same wire for the same pair of bolts

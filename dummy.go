@@ -1,69 +1,47 @@
 package events
 
-// Dummy Sink
-type DummySink struct {
+// Null Sink
+type NullSink struct {
 	*SinkBase
 }
 
-func NewDummySink(id string) *DummySink {
-	return &DummySink{
+func NewNullSink(id string) *NullSink {
+	return &NullSink{
 		SinkBase: &SinkBase{
 			id: id,
 		},
 	}
 }
 
-func (s *DummySink) Receive(evt *Event) error {
+func (s *NullSink) Receive(evt *Event) error {
 	log.Tracef("SINK ID %v received event: %v with: %v", s.ID(), evt.Key, evt.Vals)
-	return evt.sender.Feedback(evt)
+	return s.SinkBase.Receive(evt)
 }
 
-// Dummy Processor
-type DummyProcessor struct {
+// Identity Processor
+type IdentityProcessor struct {
 	*ProcessorBase
 }
 
-func NewDummyProcessor(id string) *DummyProcessor {
-	return &DummyProcessor{
+func NewIdentityProcessor(id string) *IdentityProcessor {
+	return &IdentityProcessor{
 		ProcessorBase: &ProcessorBase{
 			id: id,
 		},
 	}
 }
 
-func (p *DummyProcessor) Receive(evt *Event) error {
+func (p *IdentityProcessor) Receive(evt *Event) error {
 	log.Tracef("PROCESSOR ID %v received event: %v with: %v", p.ID(), evt.Key, evt.Vals)
-
-	err := p.Process(evt)
-	if err != nil {
-		return err
-	}
-
-	err = p.ProcessorBase.Feedback(evt)
-	if err != nil {
-		return err
-	}
-
-	_, err = p.Send(evt)
-
-	return err
+	return p.ProcessorBase.Receive(evt)
 }
 
-func (p *DummyProcessor) Send(evt *Event) (ack bool, err error) {
-	for _, w := range p.outlets {
-		copy := *evt
-		copy.wire = w
-		copy.sender = p
-		*w.events <- &copy
-	}
-	return true, nil
-}
-
-func (p *DummyProcessor) Process(evt *Event) error {
+func (p *IdentityProcessor) Process(evt *Event) error {
+	// Do nothing
 	return nil
 }
 
-func (p *DummyProcessor) Feedback(evt *Event) error {
+func (p *IdentityProcessor) Feedback(evt *Event) error {
 	log.Tracef("PROCESSOR ID %v received FEEDBACK of: %v with: %v", p.ID(), evt.Key, evt.Vals)
-	return nil
+	return p.ProcessorBase.Feedback(evt)
 }

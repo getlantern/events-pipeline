@@ -13,8 +13,9 @@ type Key string
 type Vals map[string]interface{}
 
 type Event struct {
-	Key  Key
-	Vals Vals
+	Key      Key
+	Vals     Vals
+	Metadata Vals
 
 	// Internal
 	wire   *Wire
@@ -73,6 +74,10 @@ type ReceiverBase struct {
 
 func (s *ReceiverBase) LinkInlet(wire *Wire) {
 	s.inlets = append(s.inlets, wire)
+}
+
+func (s *ReceiverBase) Receive(evt *Event) error {
+	return evt.sender.Feedback(evt)
 }
 
 // Emitter
@@ -149,6 +154,39 @@ type ProcessorBase struct {
 	id string
 	SenderBase
 	ReceiverBase
+}
+
+func NewProcessorBase(id string) *ProcessorBase {
+	return &ProcessorBase{
+		id: id,
+	}
+}
+
+func (p *ProcessorBase) Receive(evt *Event) error {
+	/*
+		err := p.(*Processor).Process(evt)
+		if err != nil {
+			return err
+		}
+	*/
+	err := p.Feedback(evt)
+	if err != nil {
+		return err
+	}
+
+	_, err = p.Send(evt)
+
+	return err
+}
+
+func (p *ProcessorBase) Send(evt *Event) (ack bool, err error) {
+	for _, w := range p.outlets {
+		copy := *evt
+		copy.wire = w
+		copy.sender = p
+		*w.events <- &copy
+	}
+	return true, nil
 }
 
 func (p *ProcessorBase) ID() string {
