@@ -16,16 +16,16 @@ func NewIdentityProcessor(id string) *IdentityProcessor {
 }
 
 func (p *IdentityProcessor) Receive(evt *events.Event) error {
-	log.Tracef("PROCESSOR ID %v received event: %v with: %v", p.ID(), evt.Key, evt.Vals)
-	return p.ProcessorBase.Receive(evt)
-}
+	err := p.ProcessorBase.Receive(evt)
+	if err != nil {
+		return err
+	}
 
-func (p *IdentityProcessor) Process(evt *events.Event) error {
-	// Do nothing
-	return nil
+	// Processing could be done here
+
+	return p.ProcessorBase.Send(evt)
 }
 
 func (p *IdentityProcessor) Feedback(evt *events.Event) error {
-	log.Tracef("PROCESSOR ID %v received FEEDBACK of: %v with: %v", p.ID(), evt.Key, evt.Vals)
 	return p.ProcessorBase.Feedback(evt)
 }

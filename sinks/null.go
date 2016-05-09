@@ -16,6 +16,5 @@ func NewNullSink(id string) *NullSink {
 }
 
 func (s *NullSink) Receive(evt *events.Event) error {
-	log.Tracef("SINK ID %v received event: %v with: %v", s.ID(), evt.Key, evt.Vals)
 	return s.SinkBase.Receive(evt)
 }
