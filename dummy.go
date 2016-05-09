@@ -15,7 +15,7 @@ func NewDummySink(id string) *DummySink {
 
 func (s *DummySink) Receive(evt *Event) error {
 	log.Tracef("SINK ID %v received event: %v with: %v", s.ID(), evt.Key, evt.Vals)
-	return evt.sender.Ack(evt)
+	return evt.sender.Feedback(evt)
 }
 
 // Dummy Processor
@@ -39,29 +39,31 @@ func (p *DummyProcessor) Receive(evt *Event) error {
 		return err
 	}
 
-	err = p.ProcessorBase.Ack(evt)
+	err = p.ProcessorBase.Feedback(evt)
 	if err != nil {
 		return err
 	}
 
-	return p.Send(evt)
+	_, err = p.Send(evt)
+
+	return err
 }
 
-func (p *DummyProcessor) Send(evt *Event) error {
+func (p *DummyProcessor) Send(evt *Event) (ack bool, err error) {
 	for _, w := range p.outlets {
 		copy := *evt
 		copy.wire = w
 		copy.sender = p
 		*w.events <- &copy
 	}
-	return nil
+	return true, nil
 }
 
 func (p *DummyProcessor) Process(evt *Event) error {
 	return nil
 }
 
-func (p *DummyProcessor) Ack(evt *Event) error {
-	log.Tracef("PROCESSOR ID %v received ACK of: %v with: %v", p.ID(), evt.Key, evt.Vals)
+func (p *DummyProcessor) Feedback(evt *Event) error {
+	log.Tracef("PROCESSOR ID %v received FEEDBACK of: %v with: %v", p.ID(), evt.Key, evt.Vals)
 	return nil
 }

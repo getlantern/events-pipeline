@@ -44,8 +44,8 @@ type Wire struct {
 type Sender interface {
 	Bolt
 	LinkOutlet(*Wire)
-	Send(*Event) error
-	Ack(*Event) error
+	Send(*Event) (ack bool, err error)
+	Feedback(*Event) error
 }
 
 type SenderBase struct {
@@ -97,20 +97,21 @@ func (e *EmitterBase) ID() string {
 }
 
 func (e *EmitterBase) Emit(k Key, v *Vals) error {
-	return e.Send(NewEvent(k, v))
+	_, err := e.Send(NewEvent(k, v))
+	return err
 }
 
-func (e *EmitterBase) Send(evt *Event) error {
+func (e *EmitterBase) Send(evt *Event) (ack bool, err error) {
 	for _, w := range e.outlets {
 		copy := *evt
 		copy.wire = w
 		copy.sender = e
 		*w.events <- &copy
 	}
-	return nil
+	return true, nil
 }
 
-func (s *SenderBase) Ack(evt *Event) error {
+func (s *SenderBase) Feedback(evt *Event) error {
 	return nil
 }
 
@@ -135,7 +136,7 @@ type Processor interface {
 	// Sender
 	LinkOutlet(*Wire)
 	Send(*Event) error
-	Ack(*Event) error
+	Feedback(*Event) error
 
 	// Receiver
 	LinkInlet(*Wire)

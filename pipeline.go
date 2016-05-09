@@ -73,7 +73,7 @@ func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) (*Wire, error) {
 func (p *Pipeline) Run() {
 	for _, wire := range p.Wires {
 		// Copy the reference to the wire
-		// Remove this line and you will unleash the wrath of the 7 gods
+		// Remove this line and you will unleash the wrath of the gods
 		wire := wire
 		go func() {
 			for {
