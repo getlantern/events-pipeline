@@ -45,7 +45,7 @@ type Wire struct {
 type Sender interface {
 	Bolt
 	LinkOutlet(*Wire)
-	Send(*Event) (ack bool, err error)
+	Send(*Event) error
 	Feedback(*Event) error
 }
 
@@ -59,6 +59,20 @@ func (s *SenderBase) ID() string {
 
 func (s *SenderBase) LinkOutlet(wire *Wire) {
 	s.outlets = append(s.outlets, wire)
+}
+
+func (s *SenderBase) Send(evt *Event) error {
+	for _, w := range s.outlets {
+		copy := *evt
+		copy.wire = w
+		copy.sender = s
+		*w.events <- &copy
+	}
+	return nil
+}
+
+func (s *SenderBase) Feedback(evt *Event) error {
+	return nil
 }
 
 // Receiver
@@ -91,7 +105,7 @@ type EmitterBase struct {
 	SenderBase
 }
 
-func NewEmitter(ID string) *EmitterBase {
+func NewEmitterBase(ID string) *EmitterBase {
 	return &EmitterBase{
 		id: ID,
 	}
@@ -102,22 +116,7 @@ func (e *EmitterBase) ID() string {
 }
 
 func (e *EmitterBase) Emit(k Key, v *Vals) error {
-	_, err := e.Send(NewEvent(k, v))
-	return err
-}
-
-func (e *EmitterBase) Send(evt *Event) (ack bool, err error) {
-	for _, w := range e.outlets {
-		copy := *evt
-		copy.wire = w
-		copy.sender = e
-		*w.events <- &copy
-	}
-	return true, nil
-}
-
-func (s *SenderBase) Feedback(evt *Event) error {
-	return nil
+	return e.Send(NewEvent(k, v))
 }
 
 // Sink
@@ -128,6 +127,12 @@ type Sink interface {
 type SinkBase struct {
 	ReceiverBase
 	id string
+}
+
+func NewSinkBase(id string) *SinkBase {
+	return &SinkBase{
+		id: id,
+	}
 }
 
 func (s *SinkBase) ID() string {
@@ -146,8 +151,6 @@ type Processor interface {
 	// Receiver
 	LinkInlet(*Wire)
 	Receive(*Event) error
-
-	Process(*Event) error
 }
 
 type ProcessorBase struct {
@@ -160,35 +163,4 @@ func NewProcessorBase(id string) *ProcessorBase {
 	return &ProcessorBase{
 		id: id,
 	}
-}
-
-func (p *ProcessorBase) Receive(evt *Event) error {
-	/*
-		err := p.(*Processor).Process(evt)
-		if err != nil {
-			return err
-		}
-	*/
-	err := p.Feedback(evt)
-	if err != nil {
-		return err
-	}
-
-	_, err = p.Send(evt)
-
-	return err
-}
-
-func (p *ProcessorBase) Send(evt *Event) (ack bool, err error) {
-	for _, w := range p.outlets {
-		copy := *evt
-		copy.wire = w
-		copy.sender = p
-		*w.events <- &copy
-	}
-	return true, nil
-}
-
-func (p *ProcessorBase) ID() string {
-	return p.id
 }
