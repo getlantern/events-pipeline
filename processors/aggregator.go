@@ -5,6 +5,7 @@ import (
 )
 
 type AggregatorOptions struct {
+	FeedbackHandler func(e *events.Event) error
 }
 
 type Aggregator struct {
@@ -13,9 +14,9 @@ type Aggregator struct {
 	options *AggregatorOptions
 }
 
-func NewAggregator(id string, opts *AggregatorOptions) *Aggregator {
+func NewAggregator(id string, feedback events.FeedbackFunc, opts *AggregatorOptions) *Aggregator {
 	return &Aggregator{
-		ProcessorBase: events.NewProcessorBase(id),
+		ProcessorBase: events.NewProcessorBase(id, feedback),
 		options:       opts,
 	}
 }

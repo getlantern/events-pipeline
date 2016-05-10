@@ -48,9 +48,11 @@ type Sender interface {
 	Send(*Event) error
 }
 
+type FeedbackFunc func(e *Event) error
+
 type SenderBase struct {
 	outlets         []*Wire
-	feedbackHandler func(e *Event) error
+	feedbackHandler FeedbackFunc
 }
 
 func (s *SenderBase) ID() string {
@@ -69,13 +71,6 @@ func (s *SenderBase) Send(evt *Event) error {
 		*w.events <- &copy
 	}
 	return nil
-}
-
-func (s *SenderBase) Feedback(evt *Event) error {
-	return nil
-}
-
-func (s *SenderBase) SetFeedbackHandler(func(*Event) error) {
 }
 
 // Receiver
@@ -108,7 +103,7 @@ type EmitterBase struct {
 	SenderBase
 }
 
-func NewEmitterBase(ID string, feedback func(e *Event) error) *EmitterBase {
+func NewEmitterBase(ID string, feedback FeedbackFunc) *EmitterBase {
 	return &EmitterBase{
 		id:         ID,
 		SenderBase: SenderBase{feedbackHandler: feedback},
@@ -150,7 +145,6 @@ type Processor interface {
 	// Sender
 	LinkOutlet(*Wire)
 	Send(*Event) error
-	Feedback(*Event) error
 
 	// Receiver
 	LinkInlet(*Wire)

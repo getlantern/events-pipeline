@@ -11,7 +11,7 @@ type IdentityProcessor struct {
 
 func NewIdentityProcessor(id string) *IdentityProcessor {
 	return &IdentityProcessor{
-		ProcessorBase: events.NewProcessorBase(id),
+		ProcessorBase: events.NewProcessorBase(id, nil),
 	}
 }
 
@@ -24,8 +24,4 @@ func (p *IdentityProcessor) Receive(evt *events.Event) error {
 	// Processing could be done here
 
 	return p.ProcessorBase.Send(evt)
-}
-
-func (p *IdentityProcessor) Feedback(evt *events.Event) error {
-	return p.ProcessorBase.Feedback(evt)
 }
