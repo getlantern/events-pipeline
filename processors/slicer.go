@@ -2,6 +2,9 @@ package processors
 
 import (
 	"container/list"
+	"math"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	events "github.com/getlantern/events-pipeline"
@@ -21,36 +24,72 @@ type SlicerDirective struct {
 }
 
 type SlicerOptions struct {
-	timeout time.Duration
-	maxEvs  uint64
+	timeout   time.Duration
+	maxEvents uint64
 }
 
 type Slicer struct {
 	*events.ProcessorBase
-
 	directives map[events.Key]SlicerDirective
-	filtered   map[string]*events.Event
+	filtered   map[events.Key]*events.Event
 	unfiltered *list.List
 	options    *SlicerOptions
+
+	unfMtx     sync.Mutex
+	forceFlush chan struct{}
+	numEvs     uint64
 }
 
 func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
+	dsmap := make(map[events.Key]SlicerDirective)
+	for _, d := range ds {
+		dsmap[d.Key] = d
+	}
 
-	go func() {
-		// TODO:
-	}()
-
-	return &Slicer{
+	slicer := &Slicer{
 		ProcessorBase: events.NewProcessorBase(id, nil),
-		filtered:      make(map[string]*events.Event),
+		filtered:      make(map[events.Key]*events.Event),
 		unfiltered:    list.New(),
-		directives:    ds,
+		directives:    dsmap,
 		options:       opts,
 	}
+
+	go func() {
+		var timer *time.Timer
+		if opts.timeout != 0 {
+			timer = time.NewTimer(time.Second * opts.timeout)
+		} else {
+			timer = time.NewTimer(math.MaxInt64)
+		}
+
+		flush := func() {
+			slicer.unfMtx.Lock()
+			for el := slicer.unfiltered.Front(); el != nil; el = el.Next() {
+				err := slicer.ProcessorBase.Send(el.Value.(*events.Event))
+				if err != nil {
+					log.Errorf("Error sending event")
+				}
+
+			}
+			slicer.unfiltered = list.New()
+			slicer.unfMtx.Unlock()
+			// TODO: process filtered
+		}
+
+		for {
+			select {
+			case <-timer.C:
+			case <-slicer.forceFlush:
+				flush()
+			}
+		}
+	}()
+
+	return slicer
 }
 
 func (s *Slicer) Receive(evt *events.Event) error {
-	log.Tracef("SLICER ID %v PROCESSED event: %v with: %v", a.ID(), evt.Key, evt.Vals)
+	log.Tracef("SLICER ID %v PROCESSED event: %v with: %v", s.ID(), evt.Key, evt.Vals)
 
 	err := s.ProcessorBase.Receive(evt)
 	if err != nil {
@@ -69,8 +108,11 @@ func (s *Slicer) Receive(evt *events.Event) error {
 			// TODO: handle the statiscical correctness of this case
 		}
 	} else {
-		l.PushBack(evt)
+		s.unfiltered.PushBack(evt)
+	}
+	if atomic.AddUint64(&s.numEvs, 1) >= s.options.maxEvents {
+		s.forceFlush <- struct{}{}
 	}
 
-	//return a.ProcessorBase.Send(evt)
+	return nil
 }

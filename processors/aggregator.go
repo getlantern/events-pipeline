@@ -42,8 +42,8 @@ func (a *Aggregator) Receive(evt *events.Event) error {
 		return err
 	}
 
-	// For few directives this would be more efficient, but consider
-	// moving directives to a map
+	// There can be more than one directive with the same key, so we need to iterate
+	// over all of them. An alternatige would be to key on both Key and Val.
 	for i, d := range a.directives {
 		if evt.Key == d.Key {
 			if val, ok := evt.Vals[d.Val]; ok {
