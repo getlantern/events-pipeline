@@ -56,7 +56,8 @@ func TestAggregator(t *testing.T) {
 	aggregator := NewAggregator(
 		"test-aggregator",
 		nil,
-		AggregationDirective{"Karma", "level", AggregatorIntRunningSum, 0},
+		AggregationDirective{"Karma", "level", AggregatorIntRunningSum, RunningSumIdentity},
+		AggregationDirective{"Happiness", "level", AggregatorFloat64MovingAverage, MovingAverageIdentity},
 	)
 
 	pipeline := events.NewPipeline(emitter)
@@ -68,6 +69,7 @@ func TestAggregator(t *testing.T) {
 
 	pipeline.Run()
 
+	// Test Running Sum
 	emitter.Emit("Karma", &events.Vals{"level": 20})
 	e := <-evs
 	assert.Equal(t, 20, e.Vals["level"], "Should hold this value")
@@ -80,7 +82,21 @@ func TestAggregator(t *testing.T) {
 	e = <-evs
 	assert.Equal(t, 60, e.Vals["level"], "Should hold this value")
 
-	time.Sleep(time.Millisecond * 50)
+	// Test moving average
+	// With these values, we shouldn't have floating point errors, but i
+	emitter.Emit("Happiness", &events.Vals{"level": 250.5})
+	e = <-evs
+	assert.Equal(t, 250.5, e.Vals["level"], "Should hold this value")
+
+	emitter.Emit("Happiness", &events.Vals{"level": 0.5})
+	e = <-evs
+	assert.Equal(t, 125.5, e.Vals["level"], "Should hold this value")
+
+	emitter.Emit("Happiness", &events.Vals{"level": 300.0})
+	emitter.Emit("Happiness", &events.Vals{"level": 400.0})
+	e = <-evs
+	e = <-evs
+	assert.Equal(t, 237.75, e.Vals["level"], "Should hold this value")
 
 	pipeline.Stop()
 }

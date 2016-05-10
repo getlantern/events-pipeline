@@ -7,7 +7,7 @@ import (
 type AggregationDirective struct {
 	Key            events.Key
 	Val            string
-	AggregatorFunc func(accum, x interface{}) interface{}
+	AggregatorFunc func(accum, x interface{}) (accum2, x2 interface{})
 	Identity       interface{}
 }
 
@@ -41,9 +41,7 @@ func (a *Aggregator) Receive(evt *events.Event) error {
 	for i, d := range a.directives {
 		if evt.Key == d.Key {
 			if val, ok := evt.Vals[d.Val]; ok {
-				updated := d.AggregatorFunc(a.currentValues[i], val)
-				a.currentValues[i] = updated
-				evt.Vals[d.Val] = updated
+				a.currentValues[i], evt.Vals[d.Val] = d.AggregatorFunc(a.currentValues[i], val)
 			}
 		}
 	}
@@ -51,8 +49,35 @@ func (a *Aggregator) Receive(evt *events.Event) error {
 	return a.ProcessorBase.Send(evt)
 }
 
+// Predefined identity values
+
+var (
+	RunningSumIdentity    = 0
+	MovingAverageIdentity = []float64{0, 0}
+)
+
 // Predefined aggregator functions
 
-func AggregatorIntRunningSum(accum, x interface{}) interface{} {
-	return accum.(int) + x.(int)
+func AggregatorIntRunningSum(accum, x interface{}) (accum2, x2 interface{}) {
+	newSum := accum.(int) + x.(int)
+	return newSum, newSum
+}
+
+func AggregatorFloat64RunningSum(accum, x interface{}) (accum2, x2 interface{}) {
+	newSum := accum.(float64) + x.(float64)
+	return newSum, newSum
+}
+
+func AggregatorFloat64MovingAverage(accum, x interface{}) (accum2, x2 interface{}) {
+	currentMA := accum.([]float64)
+
+	numElem := currentMA[0]
+	newNumElem := numElem + 1
+
+	currentAv := currentMA[1]
+
+	newAverage := ((numElem * currentAv) + x.(float64)) / newNumElem
+	newMovingAverage := []float64{newNumElem, newAverage}
+
+	return newMovingAverage, newAverage
 }
