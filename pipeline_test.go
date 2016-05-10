@@ -73,7 +73,7 @@ func TestFeedback(t *testing.T) {
 	ipfc := make(chan string, 2)
 
 	emitter := NewEmitterBase("test-emitter", func(e *Event) error {
-		log.Debugf("FEEDBACK!")
+		log.Tracef("FEEDBACK!")
 		efc <- quote1
 		return nil
 	})

@@ -55,7 +55,6 @@ func TestAggregator(t *testing.T) {
 
 	aggregator := NewAggregator(
 		"test-aggregator",
-		nil,
 		AggregationDirective{"Karma", "level", AggregatorIntRunningSum, RunningSumIdentity},
 		AggregationDirective{"Happiness", "level", AggregatorFloat64MovingAverage, MovingAverageIdentity},
 	)

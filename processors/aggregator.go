@@ -18,11 +18,14 @@ type Aggregator struct {
 	currentValues []interface{}
 }
 
-func NewAggregator(id string, feedback events.FeedbackFunc, ds ...AggregationDirective) *Aggregator {
+func NewAggregator(id string, ds ...AggregationDirective) *Aggregator {
 	initValues := make([]interface{}, len(ds))
 	for i, d := range ds {
 		initValues[i] = d.Identity
 	}
+
+	// TODO: signal restart of aggregation
+	var feedback events.FeedbackFunc
 
 	return &Aggregator{
 		ProcessorBase: events.NewProcessorBase(id, feedback),
@@ -33,16 +36,20 @@ func NewAggregator(id string, feedback events.FeedbackFunc, ds ...AggregationDir
 
 func (a *Aggregator) Receive(evt *events.Event) error {
 	log.Tracef("AGGREGATOR ID %v PROCESSED event: %v with: %v", a.ID(), evt.Key, evt.Vals)
+
 	err := a.ProcessorBase.Receive(evt)
 	if err != nil {
 		return err
 	}
 
+	// For few directives this would be more efficient, but consider
+	// moving directives to a map
 	for i, d := range a.directives {
 		if evt.Key == d.Key {
 			if val, ok := evt.Vals[d.Val]; ok {
 				a.currentValues[i], evt.Vals[d.Val] = d.AggregatorFunc(a.currentValues[i], val)
 			}
+			break
 		}
 	}
 
