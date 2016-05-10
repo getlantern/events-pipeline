@@ -80,7 +80,18 @@ func (p *Pipeline) Run() {
 				select {
 				case evt := <-*wire.events:
 					for _, rcv := range wire.receivers {
-						rcv.Receive(evt)
+						err := rcv.Receive(evt)
+						if err != nil {
+							log.Errorf("Error receiving event: %v", err)
+							continue
+						}
+						if evt.sender.(*SenderBase).feedbackHandler != nil {
+							err = evt.sender.(*SenderBase).feedbackHandler(evt)
+							if err != nil {
+								log.Errorf("Error in feedback handler: %v", err)
+							}
+
+						}
 					}
 				case <-p.stop:
 					return

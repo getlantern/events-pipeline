@@ -46,11 +46,11 @@ type Sender interface {
 	Bolt
 	LinkOutlet(*Wire)
 	Send(*Event) error
-	Feedback(*Event) error
 }
 
 type SenderBase struct {
-	outlets []*Wire
+	outlets         []*Wire
+	feedbackHandler func(e *Event) error
 }
 
 func (s *SenderBase) ID() string {
@@ -75,6 +75,9 @@ func (s *SenderBase) Feedback(evt *Event) error {
 	return nil
 }
 
+func (s *SenderBase) SetFeedbackHandler(func(*Event) error) {
+}
+
 // Receiver
 type Receiver interface {
 	Bolt
@@ -91,7 +94,7 @@ func (s *ReceiverBase) LinkInlet(wire *Wire) {
 }
 
 func (s *ReceiverBase) Receive(evt *Event) error {
-	return evt.sender.Feedback(evt)
+	return nil
 }
 
 // Emitter
@@ -105,9 +108,10 @@ type EmitterBase struct {
 	SenderBase
 }
 
-func NewEmitterBase(ID string) *EmitterBase {
+func NewEmitterBase(ID string, feedback func(e *Event) error) *EmitterBase {
 	return &EmitterBase{
-		id: ID,
+		id:         ID,
+		SenderBase: SenderBase{feedbackHandler: feedback},
 	}
 }
 
@@ -159,8 +163,9 @@ type ProcessorBase struct {
 	ReceiverBase
 }
 
-func NewProcessorBase(id string) *ProcessorBase {
+func NewProcessorBase(id string, feedback func(e *Event) error) *ProcessorBase {
 	return &ProcessorBase{
-		id: id,
+		id:         id,
+		SenderBase: SenderBase{feedbackHandler: feedback},
 	}
 }
