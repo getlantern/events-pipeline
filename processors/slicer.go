@@ -41,6 +41,10 @@ type Slicer struct {
 }
 
 func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
+	if opts.maxEvents == 0 {
+		opts.maxEvents = math.MaxUint64
+	}
+
 	dsmap := make(map[events.Key]SlicerDirective)
 	for _, d := range ds {
 		dsmap[d.Key] = d
