@@ -31,7 +31,6 @@ type SlicerOptions struct {
 
 type directiveMap map[events.Key]SlicerDirective
 type filteredMap map[events.Key]*events.Event
-type keyCountMap map[events.Key]int64
 
 type Slicer struct {
 	*events.ProcessorBase
@@ -69,11 +68,12 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 	}
 
 	go func() {
-		var timer *time.Timer
+		// TODO: handle stop and restart (need to stop ticker)
+		var ticker *time.Ticker
 		if opts.timeout != 0 {
-			timer = time.NewTimer(time.Second * opts.timeout)
+			ticker = time.NewTicker(time.Second * opts.timeout)
 		} else {
-			timer = time.NewTimer(math.MaxInt64)
+			ticker = time.NewTicker(math.MaxInt64)
 		}
 
 		flush := func() {
@@ -100,7 +100,7 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 
 		for {
 			select {
-			case <-timer.C:
+			case <-ticker.C:
 			case <-s.forceFlush:
 				flush()
 			}
