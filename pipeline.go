@@ -112,7 +112,7 @@ func (p *Pipeline) Run() {
 							log.Errorf("Error receiving event: %v", err)
 							continue
 						}
-						if evt.sender.(*SenderBase).feedbackHandler != nil {
+						if evt.sender.(*SenderBase).feedbackHandler != nil && evt.Key != "" {
 							err = evt.sender.(*SenderBase).feedbackHandler(evt)
 							if err != nil {
 								log.Errorf("Error in feedback handler: %v", err)
