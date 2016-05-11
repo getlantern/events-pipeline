@@ -3,6 +3,7 @@ package processors
 import (
 	"container/list"
 	"math"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,12 +29,19 @@ type SlicerOptions struct {
 	maxEvents uint64
 }
 
+type directiveMap map[events.Key]SlicerDirective
+type filteredMap map[events.Key]*events.Event
+type keyCountMap map[events.Key]int64
+
 type Slicer struct {
 	*events.ProcessorBase
-	directives map[events.Key]SlicerDirective
-	filtered   map[events.Key]*events.Event
+	directives directiveMap
+	filtered   filteredMap
 	unfiltered *list.List
 	options    *SlicerOptions
+
+	keyCount keyCountMap
+	r        *rand.Rand
 
 	evMtx      sync.Mutex
 	forceFlush chan struct{}
@@ -45,17 +53,19 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 		opts.maxEvents = math.MaxUint64
 	}
 
-	dsmap := make(map[events.Key]SlicerDirective)
+	dsmap := make(directiveMap)
 	for _, d := range ds {
 		dsmap[d.Key] = d
 	}
 
 	s := &Slicer{
 		ProcessorBase: events.NewProcessorBase(id, nil),
-		filtered:      make(map[events.Key]*events.Event),
-		unfiltered:    list.New(),
 		directives:    dsmap,
+		filtered:      make(filteredMap),
+		unfiltered:    list.New(),
 		options:       opts,
+		keyCount:      make(keyCountMap),
+		r:             rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 
 	go func() {
@@ -83,7 +93,8 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 					log.Errorf("Error sending event")
 				}
 			}
-			s.filtered = make(map[events.Key]*events.Event)
+			s.filtered = make(filteredMap)
+			s.keyCount = make(keyCountMap)
 			s.evMtx.Unlock()
 		}
 
@@ -117,7 +128,15 @@ func (s *Slicer) Receive(evt *events.Event) error {
 				s.filtered[evt.Key] = evt
 			}
 		case KeepRandom:
-			// TODO: handle the statiscical correctness of this case
+			numEvs, ok := s.keyCount[evt.Key]
+			if !ok {
+				s.keyCount[evt.Key] = 0
+				numEvs = 0
+			}
+			if s.r.Int63n(numEvs+1) == numEvs {
+				s.filtered[evt.Key] = evt
+			}
+			s.keyCount[evt.Key] = numEvs + 1
 		}
 	} else {
 		s.unfiltered.PushBack(evt)
