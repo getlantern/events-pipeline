@@ -14,7 +14,7 @@ import (
 const (
 	KeepLast   = 1
 	KeepFirst  = 2
-	KeepRandom = 3 // TODO
+	KeepRandom = 3
 )
 
 type DirectiveType int
@@ -112,6 +112,13 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 
 func (s *Slicer) Receive(evt *events.Event) error {
 	log.Tracef("SLICER ID %v PROCESSED event: %v with: %v", s.ID(), evt.Key, evt.Vals)
+
+	// Handle the SystemEventStop signal
+	if evt.Key == "" {
+		if _, ok := evt.Vals[events.SystemEventStop]; ok {
+			s.forceFlush <- struct{}{}
+		}
+	}
 
 	err := s.ProcessorBase.Receive(evt)
 	if err != nil {
