@@ -19,6 +19,10 @@ func NewIdentityProcessor(id string, feedback func(e *Event) error) *IdentityPro
 }
 
 func (p *IdentityProcessor) Receive(evt *Event) error {
+	if evt.Key == "" {
+		return nil
+	}
+
 	log.Tracef("PROCESSOR ID %v received event: %v with: %v", p.ID(), evt.Key, evt.Vals)
 	err := p.ProcessorBase.Receive(evt)
 	if err != nil {

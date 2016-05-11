@@ -57,6 +57,8 @@ func (p *Persister) Receive(evt *events.Event) error {
 	// Handle the SystemEvent signals
 	if evt.Key == "" {
 		if _, ok := evt.Vals[string(events.SystemEventInit)]; ok {
+			log.Debugf("PERSIST INIT!")
+
 			var err error
 			p.pf, err = os.OpenFile(p.options.PersistPath, os.O_APPEND|os.O_WRONLY, 0666)
 			if err != nil {

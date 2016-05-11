@@ -17,7 +17,7 @@ import (
 )
 
 type Pipeline struct {
-	Bolts []Bolt
+	Bolts map[string]Bolt
 	Wires []*Wire
 
 	init chan struct{}
@@ -26,12 +26,14 @@ type Pipeline struct {
 
 func NewPipeline(sender Sender) *Pipeline {
 	p := &Pipeline{
-		Bolts: []Bolt{sender}, // TODO
+		Bolts: map[string]Bolt{sender.ID(): sender},
 		Wires: []*Wire{},
-		init:  make(chan struct{}, 1),
+		init:  make(chan struct{}),
 		stop:  make(chan struct{}),
 	}
-	p.init <- struct{}{}
+	go func() {
+		p.init <- struct{}{}
+	}()
 	return p
 }
 
@@ -42,12 +44,22 @@ func (p *Pipeline) Plug(s Sender, r Receiver) (*Wire, error) {
 		receivers: []Receiver{},
 		events:    &evChan,
 	}
-	p.Wires = append(p.Wires, wire)
 
-	return p.PlugWith(s, r, wire)
+	w, err := p.PlugWith(s, r, wire)
+	if err == nil {
+		p.Wires = append(p.Wires, wire)
+	}
+	return w, err
 }
 
 func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) (*Wire, error) {
+	if _, exists := p.Bolts[s.ID()]; !exists {
+		p.Bolts[s.ID()] = s
+	}
+	if _, exists := p.Bolts[r.ID()]; !exists {
+		p.Bolts[r.ID()] = r
+	}
+
 	// Find out if the sender already uses this wire
 	var fSender Sender
 	for _, ws := range wire.senders {
@@ -76,6 +88,11 @@ func (p *Pipeline) PlugWith(s Sender, r Receiver, wire *Wire) (*Wire, error) {
 }
 
 func (p *Pipeline) Run() {
+	// Initialization
+	if err := p.broadcastSysEvent(SystemEventInit); err != nil {
+		log.Errorf("Error broadcasting INIT system event: %v", err) //
+	}
+
 	for _, wire := range p.Wires {
 		// Copy the reference to the wire
 		// Remove this line and you will unleash the wrath of the gods
@@ -87,11 +104,6 @@ func (p *Pipeline) Run() {
 				// This only works if the system has bounded liveness and cannot lock
 				// indefinitely
 				select {
-				case <-p.init:
-					// Initialization
-					if err := p.broadcastSysEvent(SystemEventInit); err != nil {
-						log.Errorf("Error broadcasting INIT system event: %v", err) //
-					}
 				case evt := <-*wire.events:
 					// Processing
 					for _, rcv := range wire.receivers {
@@ -109,11 +121,6 @@ func (p *Pipeline) Run() {
 						}
 					}
 				case <-p.stop:
-					// Stopping
-					// Broadcast a system event to all receivers
-					if err := p.broadcastSysEvent(SystemEventStop); err != nil {
-						log.Errorf("Error broadcasting STOP system event: %v", err)
-					}
 					return
 				}
 			}
@@ -122,6 +129,11 @@ func (p *Pipeline) Run() {
 }
 
 func (p *Pipeline) Stop() {
+	// Broadcast a system event to all receivers
+	if err := p.broadcastSysEvent(SystemEventStop); err != nil {
+		log.Errorf("Error broadcasting STOP system event: %v", err)
+	}
+
 	p.stop <- struct{}{}
 }
 
