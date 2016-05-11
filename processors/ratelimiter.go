@@ -39,6 +39,11 @@ func NewRateLimiter(id string, opts RateLimiterOptions) *RateLimiter {
 func (r *RateLimiter) Receive(evt *events.Event) error {
 	log.Tracef("RATELIMITER ID %v PROCESSED event: %v with: %v", r.ID(), evt.Key, evt.Vals)
 
+	// Handle the SystemEvent signals
+	if evt.Key == "" {
+		return nil
+	}
+
 	err := r.ProcessorBase.Receive(evt)
 	if err != nil {
 		return err

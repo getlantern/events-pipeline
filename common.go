@@ -31,10 +31,13 @@ func NewEvent(k Key, vals *Vals) *Event {
 	}
 }
 
+type SysEvent string
+
 // System Events
 // These do not have any key, and the ID is found as a Vals key
 const (
-	SystemEventStop = "stop"
+	SystemEventInit SysEvent = "init"
+	SystemEventStop SysEvent = "stop"
 )
 
 // Bolt

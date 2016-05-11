@@ -118,3 +118,28 @@ func TestIdentityProcessor(t *testing.T) {
 
 	pipeline.Stop()
 }
+
+func TestPersister(t *testing.T) {
+	emitter := events.NewEmitterBase("test-emitter", nil)
+	sink := NewNullSink("test-sink")
+	persister := NewPersister(
+		"test-processor",
+		&PersisterOptions{
+			MaxEvents:   2,
+			PersistPath: "tmp-test",
+		})
+	pipeline := events.NewPipeline(emitter)
+	_, err := pipeline.Plug(emitter, persister)
+	assert.Nil(t, err, "Should be nil")
+	_, err = pipeline.Plug(persister, sink)
+	assert.Nil(t, err, "Should be nil")
+
+	pipeline.Run()
+
+	emitter.Emit("Key A", &events.Vals{})
+	emitter.Emit("Key B", &events.Vals{})
+
+	time.Sleep(time.Millisecond * 20)
+
+	pipeline.Stop()
+}

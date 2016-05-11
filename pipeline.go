@@ -19,15 +19,20 @@ import (
 type Pipeline struct {
 	Bolts []Bolt
 	Wires []*Wire
-	stop  chan struct{}
+
+	init chan struct{}
+	stop chan struct{}
 }
 
 func NewPipeline(sender Sender) *Pipeline {
-	return &Pipeline{
+	p := &Pipeline{
 		Bolts: []Bolt{sender}, // TODO
 		Wires: []*Wire{},
+		init:  make(chan struct{}, 1),
 		stop:  make(chan struct{}),
 	}
+	p.init <- struct{}{}
+	return p
 }
 
 func (p *Pipeline) Plug(s Sender, r Receiver) (*Wire, error) {
@@ -77,8 +82,18 @@ func (p *Pipeline) Run() {
 		wire := wire
 		go func() {
 			for {
+				// We always select on the stop signal at the end, so we make sure
+				// all wires are cleared of events before stopping.
+				// This only works if the system has bounded liveness and cannot lock
+				// indefinitely
 				select {
+				case <-p.init:
+					// Initialization
+					if err := p.broadcastSysEvent(SystemEventInit); err != nil {
+						log.Errorf("Error broadcasting INIT system event: %v", err) //
+					}
 				case evt := <-*wire.events:
+					// Processing
 					for _, rcv := range wire.receivers {
 						err := rcv.Receive(evt)
 						if err != nil {
@@ -93,11 +108,12 @@ func (p *Pipeline) Run() {
 
 						}
 					}
-					// We always select on the stop signal at the end, so we make sure
-					// all wires are cleared of events before stopping.
-					// This only works if the system has bounded liveness and cannot lock
-					// indefinitely
 				case <-p.stop:
+					// Stopping
+					// Broadcast a system event to all receivers
+					if err := p.broadcastSysEvent(SystemEventStop); err != nil {
+						log.Errorf("Error broadcasting STOP system event: %v", err)
+					}
 					return
 				}
 			}
@@ -106,15 +122,17 @@ func (p *Pipeline) Run() {
 }
 
 func (p *Pipeline) Stop() {
-	// Broadcast a system event to all receivers
+	p.stop <- struct{}{}
+}
+
+func (p *Pipeline) broadcastSysEvent(sysEvType SysEvent) error {
 	for _, b := range p.Bolts {
 		if r, ok := b.(Receiver); ok {
-			err := r.Receive(NewEvent("", &Vals{SystemEventStop: nil}))
+			err := r.Receive(NewEvent("", &Vals{string(sysEvType): nil}))
 			if err != nil {
-				log.Errorf("Error processing system event: %v", err)
+				return err
 			}
 		}
 	}
-	// ...and make the stop channel ready for when the wires are cleared
-	p.stop <- struct{}{}
+	return nil
 }

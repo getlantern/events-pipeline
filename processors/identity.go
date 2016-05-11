@@ -21,6 +21,11 @@ func (p *IdentityProcessor) Receive(evt *events.Event) error {
 		return err
 	}
 
+	// Handle the SystemEvent signals
+	if evt.Key == "" {
+		return nil
+	}
+
 	// Processing could be done here
 
 	return p.ProcessorBase.Send(evt)

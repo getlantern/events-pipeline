@@ -37,6 +37,11 @@ func NewAggregator(id string, ds ...AggregationDirective) *Aggregator {
 func (a *Aggregator) Receive(evt *events.Event) error {
 	log.Tracef("AGGREGATOR ID %v PROCESSED event: %v with: %v", a.ID(), evt.Key, evt.Vals)
 
+	// Handle the SystemEvent signals
+	if evt.Key == "" {
+		return nil
+	}
+
 	err := a.ProcessorBase.Receive(evt)
 	if err != nil {
 		return err
