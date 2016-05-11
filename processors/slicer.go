@@ -35,7 +35,7 @@ type Slicer struct {
 	unfiltered *list.List
 	options    *SlicerOptions
 
-	unfMtx     sync.Mutex
+	evMtx      sync.Mutex
 	forceFlush chan struct{}
 	numEvs     uint64
 }
@@ -50,7 +50,7 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 		dsmap[d.Key] = d
 	}
 
-	slicer := &Slicer{
+	s := &Slicer{
 		ProcessorBase: events.NewProcessorBase(id, nil),
 		filtered:      make(map[events.Key]*events.Event),
 		unfiltered:    list.New(),
@@ -67,29 +67,36 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 		}
 
 		flush := func() {
-			slicer.unfMtx.Lock()
-			for el := slicer.unfiltered.Front(); el != nil; el = el.Next() {
-				err := slicer.ProcessorBase.Send(el.Value.(*events.Event))
+			s.evMtx.Lock()
+			for el := s.unfiltered.Front(); el != nil; el = el.Next() {
+				err := s.ProcessorBase.Send(el.Value.(*events.Event))
 				if err != nil {
 					log.Errorf("Error sending event")
 				}
 
 			}
-			slicer.unfiltered = list.New()
-			slicer.unfMtx.Unlock()
-			// TODO: process filtered
+			s.unfiltered = list.New()
+
+			for _, v := range s.filtered {
+				err := s.ProcessorBase.Send(v)
+				if err != nil {
+					log.Errorf("Error sending event")
+				}
+			}
+			s.filtered = make(map[events.Key]*events.Event)
+			s.evMtx.Unlock()
 		}
 
 		for {
 			select {
 			case <-timer.C:
-			case <-slicer.forceFlush:
+			case <-s.forceFlush:
 				flush()
 			}
 		}
 	}()
 
-	return slicer
+	return s
 }
 
 func (s *Slicer) Receive(evt *events.Event) error {
@@ -100,6 +107,7 @@ func (s *Slicer) Receive(evt *events.Event) error {
 		return err
 	}
 
+	s.evMtx.Lock()
 	if d, ok := s.directives[evt.Key]; ok {
 		switch d.dtype {
 		case KeepLast:
@@ -114,6 +122,8 @@ func (s *Slicer) Receive(evt *events.Event) error {
 	} else {
 		s.unfiltered.PushBack(evt)
 	}
+	s.evMtx.Unlock()
+
 	if atomic.AddUint64(&s.numEvs, 1) >= s.options.maxEvents {
 		s.forceFlush <- struct{}{}
 	}
