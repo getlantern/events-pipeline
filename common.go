@@ -1,6 +1,8 @@
 package events
 
 import (
+	"fmt"
+
 	"github.com/getlantern/golog"
 )
 
@@ -28,6 +30,12 @@ func NewEvent(k Key, vals *Vals) *Event {
 		Vals: *vals,
 	}
 }
+
+// System Events
+// These do not have any key, and the ID is found as a Vals key
+const (
+	SystemEventStop = "stop"
+)
 
 // Bolt
 type Bolt interface {
@@ -115,6 +123,9 @@ func (e *EmitterBase) ID() string {
 }
 
 func (e *EmitterBase) Emit(k Key, v *Vals) error {
+	if k == "" {
+		return fmt.Errorf("Event Key cannot be empty")
+	}
 	return e.Send(NewEvent(k, v))
 }
 

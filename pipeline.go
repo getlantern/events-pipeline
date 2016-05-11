@@ -93,6 +93,10 @@ func (p *Pipeline) Run() {
 
 						}
 					}
+					// We always select on the stop signal at the end, so we make sure
+					// all wires are cleared of events before stopping.
+					// This only works if the system has bounded liveness and cannot lock
+					// indefinitely
 				case <-p.stop:
 					return
 				}
@@ -102,5 +106,15 @@ func (p *Pipeline) Run() {
 }
 
 func (p *Pipeline) Stop() {
+	// Broadcast a system event to all receivers
+	for _, b := range p.Bolts {
+		if r, ok := b.(Receiver); ok {
+			err := r.Receive(NewEvent("", &Vals{SystemEventStop: nil}))
+			if err != nil {
+				log.Errorf("Error processing system event: %v", err)
+			}
+		}
+	}
+	// ...and make the stop channel ready for when the wires are cleared
 	p.stop <- struct{}{}
 }
