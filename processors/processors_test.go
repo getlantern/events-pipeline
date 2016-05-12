@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -44,6 +45,7 @@ func (c *CallbackSink) Receive(e *events.Event) error {
 	return c.SinkBase.Receive(e)
 }
 
+/*
 func TestAggregator(t *testing.T) {
 	evs := make(chan *events.Event, 3)
 
@@ -118,15 +120,26 @@ func TestIdentityProcessor(t *testing.T) {
 
 	pipeline.Stop()
 }
-
+*/
 func TestPersister(t *testing.T) {
+	persistPath := "test-persister"
+	defer func() {
+		if _, err := os.Stat(persistPath); err == nil {
+			err := os.Remove(persistPath)
+			if err != nil {
+				log.Errorf("Error removing Persister recovery file: %v", err)
+				return
+			}
+		}
+	}()
+
 	emitter := events.NewEmitterBase("test-emitter", nil)
 	sink := NewNullSink("test-sink")
 	persister := NewPersister(
 		"test-processor",
 		&PersisterOptions{
 			MaxEvents:   2,
-			PersistPath: "tmp-test",
+			PersistPath: persistPath,
 		})
 	pipeline := events.NewPipeline(emitter)
 	_, err := pipeline.Plug(emitter, persister)
@@ -136,10 +149,35 @@ func TestPersister(t *testing.T) {
 
 	pipeline.Run()
 
-	emitter.Emit("Key A", &events.Vals{})
-	emitter.Emit("Key B", &events.Vals{})
+	evt := events.NewEvent("Colors", &events.Vals{"Beauty": "Imperfection"})
 
-	time.Sleep(time.Millisecond * 20)
+	if err := persister.persistEvent(evt); err != nil {
+		assert.Nil(t, err, "Error should be nil")
+	}
+
+	log.Tracef("ENTERING")
+
+	persister.journalFile, err = os.OpenFile(
+		persister.options.PersistPath,
+		os.O_RDWR|os.O_CREATE,
+		0666,
+	)
+	if err != nil {
+		log.Errorf("Error opening or creating event recovery file: %v", err)
+	}
+
+	persister.b.Reset()
+
+	evts, err := persister.recoverEvents()
+	if err != nil {
+		t.Fatalf("Error recovering events: %v", err)
+	}
+
+	if assert.Equal(t, 1, len(evts), "One event should have been recovered") {
+		assert.Equal(t, *evt, evts[0], "The recovered event should be the last one emitted")
+	}
+
+	time.Sleep(100 * time.Millisecond)
 
 	pipeline.Stop()
 }
