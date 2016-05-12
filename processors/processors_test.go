@@ -48,6 +48,25 @@ func (c *CallbackSink) Receive(e *events.Event) error {
 	return c.SinkBase.Receive(e)
 }
 
+func TestIdentityProcessor(t *testing.T) {
+	emitter := events.NewEmitterBase("test-emitter", nil)
+	sink := NewNullSink("test-sink")
+	dummy := NewIdentityProcessor("test-processor")
+	pipeline := events.NewPipeline(emitter)
+	_, err := pipeline.Plug(emitter, dummy)
+	assert.Nil(t, err, "Should be nil")
+	_, err = pipeline.Plug(dummy, sink)
+	assert.Nil(t, err, "Should be nil")
+
+	pipeline.Run()
+
+	emitter.Emit("Key A", &events.Vals{})
+	emitter.Emit("Key B", &events.Vals{})
+	time.Sleep(time.Millisecond * 20)
+
+	pipeline.Stop()
+}
+
 func TestAggregator(t *testing.T) {
 	evs := make(chan *events.Event, 3)
 
@@ -104,21 +123,34 @@ func TestAggregator(t *testing.T) {
 	pipeline.Stop()
 }
 
-func TestIdentityProcessor(t *testing.T) {
+func TestRateLimiter(t *testing.T) {
+	evs := make(chan *events.Event, 3)
+
 	emitter := events.NewEmitterBase("test-emitter", nil)
-	sink := NewNullSink("test-sink")
-	dummy := NewIdentityProcessor("test-processor")
+	sink := NewCallbackSink("test-sink", func(e *events.Event) {
+		log.Tracef("Entering callback with event %v", e)
+		evs <- e
+	})
+
+	ratelimiter := NewRateLimiter(
+		"test-ratelimiter",
+		&RateLimiterOptions{Interval: time.Minute, MaxPerInterval: 1},
+	)
+
 	pipeline := events.NewPipeline(emitter)
-	_, err := pipeline.Plug(emitter, dummy)
+	_, err := pipeline.Plug(emitter, ratelimiter)
 	assert.Nil(t, err, "Should be nil")
-	_, err = pipeline.Plug(dummy, sink)
+	_, err = pipeline.Plug(ratelimiter, sink)
 	assert.Nil(t, err, "Should be nil")
 
 	pipeline.Run()
 
-	emitter.Emit("Key A", &events.Vals{})
-	emitter.Emit("Key B", &events.Vals{})
-	time.Sleep(time.Millisecond * 20)
+	emitter.Emit("Wisdom", &events.Vals{})
+	emitter.Emit("Wisdom", &events.Vals{})
+
+	time.Sleep(20 * time.Millisecond)
+
+	assert.Equal(t, 1, len(evs), "Only one event should have arrived to the sink")
 
 	pipeline.Stop()
 }

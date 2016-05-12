@@ -1,31 +1,33 @@
 package processors
 
 import (
+	"sync"
 	"time"
 
 	events "github.com/getlantern/events-pipeline"
 )
 
 type RateLimiterOptions struct {
-	maxPerInterval int64
-	interval       time.Duration
+	Interval       time.Duration
+	MaxPerInterval int64
 }
 
 type RateLimiter struct {
 	*events.ProcessorBase
-	options RateLimiterOptions
+	options *RateLimiterOptions
 
 	sentKeyCount      keyCountMap
 	discardedKeyCount keyCountMap
-	ticker            time.Ticker
+	keysMtx           sync.Mutex
+	ticker            *time.Ticker
 }
 
-func NewRateLimiter(id string, opts RateLimiterOptions) *RateLimiter {
-	if opts.maxPerInterval == 0 {
+func NewRateLimiter(id string, opts *RateLimiterOptions) *RateLimiter {
+	if opts.MaxPerInterval == 0 {
 		panic("Limiting the number of events to 0 per time unit makes no sense")
 	}
-	if opts.interval == 0 {
-		opts.interval = time.Minute
+	if opts.Interval == 0 {
+		opts.Interval = time.Minute
 	}
 
 	return &RateLimiter{
@@ -33,6 +35,7 @@ func NewRateLimiter(id string, opts RateLimiterOptions) *RateLimiter {
 		options:           opts,
 		sentKeyCount:      make(keyCountMap),
 		discardedKeyCount: make(keyCountMap),
+		ticker:            time.NewTicker(opts.Interval),
 	}
 }
 
@@ -48,6 +51,9 @@ func (r *RateLimiter) Receive(evt *events.Event) error {
 	if err != nil {
 		return err
 	}
+
+	r.keysMtx.Lock()
+	defer r.keysMtx.Unlock()
 
 	select {
 	case <-r.ticker.C:
@@ -65,7 +71,7 @@ func (r *RateLimiter) Receive(evt *events.Event) error {
 			v = 0
 		}
 
-		if v < r.options.maxPerInterval {
+		if v < r.options.MaxPerInterval {
 			r.sentKeyCount[evt.Key] = v + 1
 			return r.ProcessorBase.Send(evt)
 		} else {
