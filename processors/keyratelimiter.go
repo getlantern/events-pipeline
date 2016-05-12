@@ -7,14 +7,14 @@ import (
 	events "github.com/getlantern/events-pipeline"
 )
 
-type RateLimiterOptions struct {
+type KeyRateLimiterOptions struct {
 	Interval       time.Duration
 	MaxPerInterval int64
 }
 
-type RateLimiter struct {
+type KeyRateLimiter struct {
 	*events.ProcessorBase
-	options *RateLimiterOptions
+	options *KeyRateLimiterOptions
 
 	sentKeyCount      keyCountMap
 	discardedKeyCount keyCountMap
@@ -22,7 +22,7 @@ type RateLimiter struct {
 	ticker            *time.Ticker
 }
 
-func NewRateLimiter(id string, opts *RateLimiterOptions) *RateLimiter {
+func NewKeyRateLimiter(id string, opts *KeyRateLimiterOptions) *KeyRateLimiter {
 	if opts.MaxPerInterval == 0 {
 		panic("Limiting the number of events to 0 per time unit makes no sense")
 	}
@@ -30,7 +30,7 @@ func NewRateLimiter(id string, opts *RateLimiterOptions) *RateLimiter {
 		opts.Interval = time.Minute
 	}
 
-	return &RateLimiter{
+	return &KeyRateLimiter{
 		ProcessorBase:     events.NewProcessorBase(id, nil),
 		options:           opts,
 		sentKeyCount:      make(keyCountMap),
@@ -39,7 +39,7 @@ func NewRateLimiter(id string, opts *RateLimiterOptions) *RateLimiter {
 	}
 }
 
-func (r *RateLimiter) Receive(evt *events.Event) error {
+func (r *KeyRateLimiter) Receive(evt *events.Event) error {
 	log.Tracef("RATELIMITER ID %v PROCESSED event: %v with: %v", r.ID(), evt.Key, evt.Vals)
 
 	// Handle the SystemEvent signals

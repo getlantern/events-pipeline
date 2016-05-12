@@ -123,7 +123,7 @@ func TestAggregator(t *testing.T) {
 	pipeline.Stop()
 }
 
-func TestRateLimiter(t *testing.T) {
+func TestKeyRateLimiter(t *testing.T) {
 	evs := make(chan *events.Event, 3)
 
 	emitter := events.NewEmitterBase("test-emitter", nil)
@@ -132,9 +132,9 @@ func TestRateLimiter(t *testing.T) {
 		evs <- e
 	})
 
-	ratelimiter := NewRateLimiter(
+	ratelimiter := NewKeyRateLimiter(
 		"test-ratelimiter",
-		&RateLimiterOptions{Interval: time.Minute, MaxPerInterval: 1},
+		&KeyRateLimiterOptions{Interval: time.Minute, MaxPerInterval: 1},
 	)
 
 	pipeline := events.NewPipeline(emitter)
