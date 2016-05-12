@@ -89,7 +89,7 @@ func (p *Persister) Receive(evt *events.Event) error {
 				os.O_APPEND|os.O_WRONLY|os.O_CREATE,
 				0666,
 			)
-			if err == nil {
+			if err != nil {
 				log.Errorf("Error opening or creating event recovery file: %v", err)
 			}
 		} else if _, ok := evt.Vals[string(events.SystemEventStop)]; ok {
