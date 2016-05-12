@@ -41,17 +41,19 @@ func NewCallbackSink(id string, cb func(e *events.Event)) *CallbackSink {
 }
 
 func (c *CallbackSink) Receive(e *events.Event) error {
-	c.callback(e)
+	// Do not perform the callback on system events
+	if e.Key != "" {
+		c.callback(e)
+	}
 	return c.SinkBase.Receive(e)
 }
 
-/*
 func TestAggregator(t *testing.T) {
 	evs := make(chan *events.Event, 3)
 
 	emitter := events.NewEmitterBase("test-emitter", nil)
 	sink := NewCallbackSink("test-sink", func(e *events.Event) {
-		log.Tracef("Entering callback!")
+		log.Tracef("Entering callback with event %v", e)
 		evs <- e
 	})
 
@@ -120,7 +122,7 @@ func TestIdentityProcessor(t *testing.T) {
 
 	pipeline.Stop()
 }
-*/
+
 func TestPersister(t *testing.T) {
 	persistPath := "test-persister"
 	defer func() {
