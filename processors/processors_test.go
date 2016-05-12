@@ -155,8 +155,7 @@ func TestPersister(t *testing.T) {
 		assert.Nil(t, err, "Error should be nil")
 	}
 
-	log.Tracef("ENTERING")
-
+	// Force opening with both read and write permissions, defying the logic of the Persister
 	persister.journalFile, err = os.OpenFile(
 		persister.options.PersistPath,
 		os.O_RDWR|os.O_CREATE,
