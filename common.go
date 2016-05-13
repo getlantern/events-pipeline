@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/getlantern/golog"
 )
@@ -15,9 +16,9 @@ type Key string
 type Vals map[string]interface{}
 
 type Event struct {
-	Key      Key
-	Vals     Vals
-	Metadata Vals
+	Key       Key
+	Timestamp time.Time
+	Vals      Vals
 
 	// Internal
 	wire   *Wire
@@ -26,8 +27,9 @@ type Event struct {
 
 func NewEvent(k Key, vals *Vals) *Event {
 	return &Event{
-		Key:  k,
-		Vals: *vals,
+		Key:       k,
+		Timestamp: time.Now(),
+		Vals:      *vals,
 	}
 }
 
