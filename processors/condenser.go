@@ -1,3 +1,6 @@
+// A condenser accumulates events until an event happens (timeout or max events)
+// Then it sends them in a burst, followed by a SystemEventMark event
+
 package processors
 
 import (
@@ -19,25 +22,25 @@ const (
 
 type DirectiveType int
 
-type SlicerDirective struct {
+type CondenserDirective struct {
 	Key   events.Key
 	dtype DirectiveType
 }
 
-type SlicerOptions struct {
+type CondenserOptions struct {
 	timeout   time.Duration
 	maxEvents uint64
 }
 
-type directiveMap map[events.Key]SlicerDirective
+type directiveMap map[events.Key]CondenserDirective
 type filteredMap map[events.Key]*events.Event
 
-type Slicer struct {
+type Condenser struct {
 	*events.ProcessorBase
 	directives directiveMap
 	filtered   filteredMap
 	unfiltered *list.List
-	options    *SlicerOptions
+	options    *CondenserOptions
 
 	keyCount keyCountMap
 	r        *rand.Rand
@@ -47,7 +50,7 @@ type Slicer struct {
 	numEvs     uint64
 }
 
-func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
+func NewCondenser(id string, opts *CondenserOptions, ds ...CondenserDirective) *Condenser {
 	if opts.maxEvents == 0 {
 		opts.maxEvents = math.MaxUint64
 	}
@@ -57,7 +60,7 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 		dsmap[d.Key] = d
 	}
 
-	s := &Slicer{
+	s := &Condenser{
 		ProcessorBase: events.NewProcessorBase(id, nil),
 		directives:    dsmap,
 		filtered:      make(filteredMap),
@@ -76,33 +79,11 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 			ticker = time.NewTicker(math.MaxInt64)
 		}
 
-		flush := func() {
-			s.evMtx.Lock()
-			for el := s.unfiltered.Front(); el != nil; el = el.Next() {
-				err := s.ProcessorBase.Send(el.Value.(*events.Event))
-				if err != nil {
-					log.Errorf("Error sending event")
-				}
-
-			}
-			s.unfiltered = list.New()
-
-			for _, v := range s.filtered {
-				err := s.ProcessorBase.Send(v)
-				if err != nil {
-					log.Errorf("Error sending event")
-				}
-			}
-			s.filtered = make(filteredMap)
-			s.keyCount = make(keyCountMap)
-			s.evMtx.Unlock()
-		}
-
 		for {
 			select {
 			case <-ticker.C:
 			case <-s.forceFlush:
-				flush()
+				s.flush()
 			}
 		}
 	}()
@@ -110,7 +91,7 @@ func NewSlicer(id string, opts *SlicerOptions, ds ...SlicerDirective) *Slicer {
 	return s
 }
 
-func (s *Slicer) Receive(evt *events.Event) error {
+func (s *Condenser) Receive(evt *events.Event) error {
 	log.Tracef("SLICER ID %v PROCESSED event: %v with: %v", s.ID(), evt.Key, evt.Vals)
 
 	// Handle the SystemEvent signals
@@ -156,4 +137,25 @@ func (s *Slicer) Receive(evt *events.Event) error {
 	}
 
 	return nil
+}
+
+func (s *Condenser) flush() {
+	s.evMtx.Lock()
+	for el := s.unfiltered.Front(); el != nil; el = el.Next() {
+		err := s.ProcessorBase.Send(el.Value.(*events.Event))
+		if err != nil {
+			log.Errorf("Error sending event")
+		}
+	}
+	s.unfiltered = list.New()
+
+	for _, v := range s.filtered {
+		err := s.ProcessorBase.Send(v)
+		if err != nil {
+			log.Errorf("Error sending event")
+		}
+	}
+	s.filtered = make(filteredMap)
+	s.keyCount = make(keyCountMap)
+	s.evMtx.Unlock()
 }
