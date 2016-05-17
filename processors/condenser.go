@@ -28,8 +28,8 @@ type CondenserDirective struct {
 }
 
 type CondenserOptions struct {
-	timeout   time.Duration
-	maxEvents uint64
+	Timeout   time.Duration
+	MaxEvents uint64
 }
 
 type directiveMap map[events.Key]CondenserDirective
@@ -51,8 +51,8 @@ type Condenser struct {
 }
 
 func NewCondenser(id string, opts *CondenserOptions, ds ...CondenserDirective) *Condenser {
-	if opts.maxEvents == 0 {
-		opts.maxEvents = math.MaxUint64
+	if opts.MaxEvents == 0 {
+		opts.MaxEvents = math.MaxUint64
 	}
 
 	dsmap := make(directiveMap)
@@ -68,13 +68,14 @@ func NewCondenser(id string, opts *CondenserOptions, ds ...CondenserDirective) *
 		options:       opts,
 		keyCount:      make(keyCountMap),
 		r:             rand.New(rand.NewSource(time.Now().UnixNano())),
+		forceFlush:    make(chan struct{}),
 	}
 
 	go func() {
 		// TODO: handle stop and restart (need to stop ticker)
 		var ticker *time.Ticker
-		if opts.timeout != 0 {
-			ticker = time.NewTicker(time.Second * opts.timeout)
+		if opts.Timeout != 0 {
+			ticker = time.NewTicker(time.Second * opts.Timeout)
 		} else {
 			ticker = time.NewTicker(math.MaxInt64)
 		}
@@ -92,7 +93,7 @@ func NewCondenser(id string, opts *CondenserOptions, ds ...CondenserDirective) *
 }
 
 func (s *Condenser) Receive(evt *events.Event) error {
-	log.Tracef("SLICER ID %v PROCESSED event: %v with: %v", s.ID(), evt.Key, evt.Vals)
+	log.Tracef("CONDENSER ID %v PROCESSED event: %v with: %v", s.ID(), evt.Key, evt.Vals)
 
 	// Handle the SystemEvent signals
 	if evt.Key == "" {
@@ -132,7 +133,7 @@ func (s *Condenser) Receive(evt *events.Event) error {
 	}
 	s.evMtx.Unlock()
 
-	if atomic.AddUint64(&s.numEvs, 1) >= s.options.maxEvents {
+	if atomic.AddUint64(&s.numEvs, 1) >= s.options.MaxEvents {
 		s.forceFlush <- struct{}{}
 	}
 
@@ -158,4 +159,10 @@ func (s *Condenser) flush() {
 	s.filtered = make(filteredMap)
 	s.keyCount = make(keyCountMap)
 	s.evMtx.Unlock()
+
+	// Send a SystemEventMark
+	err := s.ProcessorBase.Send(events.NewEvent("", &events.Vals{string(events.SystemEventMark): nil}))
+	if err != nil {
+		log.Errorf("Error sending event")
+	}
 }

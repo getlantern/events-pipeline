@@ -123,6 +123,39 @@ func TestAggregator(t *testing.T) {
 	pipeline.Stop()
 }
 
+func TestCondenser(t *testing.T) {
+	evs := make(chan *events.Event, 3)
+
+	emitter := events.NewEmitterBase("test-emitter", nil)
+
+	sink := NewCallbackSink("test-sink", func(e *events.Event) {
+		log.Tracef("Entering callback with event %v", e)
+		evs <- e
+	})
+
+	condenser := NewCondenser(
+		"test-condenser",
+		&CondenserOptions{Timeout: time.Minute, MaxEvents: 2},
+	)
+
+	pipeline := events.NewPipeline(emitter)
+	_, err := pipeline.Plug(emitter, condenser)
+	assert.Nil(t, err, "Should be nil")
+	_, err = pipeline.Plug(condenser, sink)
+	assert.Nil(t, err, "Should be nil")
+
+	pipeline.Run()
+
+	emitter.Emit("Empathy", &events.Vals{})
+	assert.Equal(t, 0, len(evs), "Event shouldn't have reached the sink")
+
+	emitter.Emit("Empathy", &events.Vals{})
+	time.Sleep(20 * time.Millisecond)
+	assert.Equal(t, 2, len(evs), "Both events should have reached the sink")
+
+	pipeline.Stop()
+}
+
 func TestKeyRateLimiter(t *testing.T) {
 	evs := make(chan *events.Event, 3)
 
@@ -134,7 +167,7 @@ func TestKeyRateLimiter(t *testing.T) {
 
 	ratelimiter := NewKeyRateLimiter(
 		"test-ratelimiter",
-		&KeyRateLimiterOptions{Interval: time.Minute, MaxPerInterval: 1},
+		&KeyRateLimiterOptions{Interval: time.Minute, MaxPerInterval: 2},
 	)
 
 	pipeline := events.NewPipeline(emitter)
@@ -147,10 +180,11 @@ func TestKeyRateLimiter(t *testing.T) {
 
 	emitter.Emit("Wisdom", &events.Vals{})
 	emitter.Emit("Wisdom", &events.Vals{})
+	emitter.Emit("Wisdom", &events.Vals{})
 
 	time.Sleep(20 * time.Millisecond)
 
-	assert.Equal(t, 1, len(evs), "Only one event should have arrived to the sink")
+	assert.Equal(t, 2, len(evs), "Only two events should have arrived to the sink")
 
 	pipeline.Stop()
 }

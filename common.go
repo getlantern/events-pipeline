@@ -40,6 +40,7 @@ type SysEvent string
 const (
 	SystemEventInit SysEvent = "init"
 	SystemEventStop SysEvent = "stop"
+	SystemEventMark SysEvent = "mark"
 )
 
 // Bolt
